@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Time Zone Planner</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #0e0f11;
+        --panel: #16181c;
+        --ink: #e9ecf1;
+        --muted: #9aa5b1;
+        --accent: #4cc9f0;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --radius: 14px;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          Helvetica, Arial, "Segoe UI", Roboto, "Noto Sans", "Apple Color Emoji",
+          "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+        background: linear-gradient(180deg, #0b0c0e, var(--bg));
+        color: var(--ink);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .container {
+        width: 100%;
+        max-width: 1000px;
+        background: var(--panel);
+        border: 1px solid #23262d;
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      p.sub {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      /* Single-column vertical stack */
+      .card {
+        background: #111317;
+        border: 1px solid #22252c;
+        border-radius: 12px;
+        padding: 14px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input,
+      select,
+      button,
+      datalist,
+      textarea {
+        width: 100%;
+        font-size: 16px;
+        font-family: Helvetica, Arial, sans-serif;
+      }
+      input[type="text"],
+      input[type="datetime-local"],
+      select {
+        background: #0f1115;
+        color: var(--ink);
+        border: 1px solid #2a2e36;
+        border-radius: 10px;
+        padding: 10px 12px;
+        outline: none;
+      }
+      input[type="text"]:focus,
+      input[type="datetime-local"]:focus,
+      select:focus {
+        border-color: var(--accent);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .row-3 {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 10px;
+        align-items: end;
+      }
+      button {
+        background: linear-gradient(180deg, #1c2027, #15181d);
+        color: var(--ink);
+        border: 1px solid #262a32;
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button.primary {
+        background: linear-gradient(180deg, #2a7bb6, #1a5d8a);
+        border-color: #1a5d8a;
+      }
+      .helper {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      /* Removed tags UI */
+      .zones {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+      .zone {
+        display: grid;
+        grid-template-columns: 1.2fr minmax(520px, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        background: #0f1115;
+      }
+      .tz-name {
+        font-weight: 600;
+        padding: 10px;
+      }
+      .zone .meta {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .tz-name {
+        font-weight: 600;
+        padding: 10px;
+      }
+      .tz-name .pill {
+        margin-left: 8px;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border: 1px solid #2b3038;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .dim {
+        color: var(--muted);
+      }
+      /* Timeline */
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(24, 1fr);
+        /* gap: 6px; */
+        align-items: center;
+      }
+      .settings-hours .hour {
+        height: 28px;
+        font-size: 12px;
+      }
+      .hour {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        line-height: 1;
+        height: 40px;
+        position: relative;
+        border: 1px solid #1c2027;
+        background: #0c0f14;
+        color: #c9d2db;
+        cursor: pointer;
+        user-select: none;
+      }
+      .hour .ampm {
+        position: absolute;
+        bottom: 2px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 9px;
+        line-height: 1;
+        opacity: 0.55;
+        color: currentColor;
+        pointer-events: none;
+      }
+      .hour.day {
+        background: #c7d4e4;
+        border-color: #9fb6cf;
+        color: #0b1320;
+      }
+      .hour.night {
+        background: #070b11;
+        border-color: #0f1620;
+        color: #f2f6fb;
+        text-shadow: 0 0 4px rgba(255, 255, 255, 0.12);
+      }
+      .hour.selected {
+        background: rgba(76, 201, 240, 0.2);
+        border-color: var(--accent);
+        color: #eaf6ff;
+        box-shadow: inset 0 0 0 1px rgba(76, 201, 240, 0.35);
+      }
+      .zone.header .hour {
+        height: 28px;
+        background: transparent;
+        border: none;
+        color: var(--muted);
+        cursor: pointer;
+        font-weight: 600;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #242831;
+        margin: 12px 0;
+      }
+      .icon-btn {
+        padding: 6px 10px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Time Zone Planner</h1>
+      <p class="sub">
+        Compare times across multiple time zones. Set a base time (local) or
+        stay in live mode to see current times.
+      </p>
+
+      <div class="grid">
+        <div class="card">
+          <div
+            class="zone header"
+            style="background: #111317; border-color: #2a2e36"
+          >
+            <div class="tz-name dim">Time Zone</div>
+            <div></div>
+          </div>
+          <div class="zones" id="zones"></div>
+          <hr />
+          <label for="tzInput">Add time zone</label>
+          <div class="row-3">
+            <input
+              id="tzInput"
+              list="tzList"
+              placeholder="e.g. America/Los_Angeles"
+            />
+            <button id="addTz" class="primary">Add</button>
+          </div>
+          <datalist id="tzList"></datalist>
+          <div class="helper">
+            Tip: Start typing a city or region. Uses IANA time zone names.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row">
+            <div>
+              <label>Settings</label>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 8px">
+                <button id="formatBtn">Format: 12h</button>
+                <div>
+                  <div class="helper" style="margin: 6px 0 6px">
+                    Day/Night hours
+                  </div>
+                  <div class="timeline settings-hours" id="settingsHours"></div>
+                  <div class="helper">Click hours to toggle day vs night</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      // --- State ---
+      const state = {
+        zones: [], // array of IANA time zone strings
+        live: true, // live mode follows current time
+        baseInstantMs: Date.now(), // epoch milliseconds
+      };
+
+      // --- Elements ---
+      const el = (id) => document.getElementById(id);
+      const tzInput = el("tzInput");
+      const tzList = el("tzList");
+      const zonesEl = el("zones");
+      const localTzLbl = { textContent: "" };
+      const formatBtn = el("formatBtn");
+      const settingsHoursEl = el("settingsHours");
+      let suspendLiveWhileTyping = false;
+
+      const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      localTzLbl.textContent = `Your local time zone: ${localTz}`;
+
+      // --- Supported time zones list ---
+      const supportedTimeZones = (Intl.supportedValuesOf &&
+        Intl.supportedValuesOf("timeZone")) || [
+        "UTC",
+        "America/Los_Angeles",
+        "America/New_York",
+        "Europe/London",
+        "Europe/Berlin",
+        "Asia/Tokyo",
+        "Asia/Kolkata",
+        "Australia/Sydney",
+      ];
+
+      function buildTzOptionLabel(tz, ms) {
+        const short = getShortTzName(tz, ms);
+        const offset = getOffsetLabel(tz, ms);
+        const pieces = [];
+        if (short && !/^GMT/i.test(short)) pieces.push(short);
+        if (offset) pieces.push(offset);
+        return pieces.join(" / ");
+      }
+
+      function renderTzDatalist() {
+        const ms = baseInstant();
+        tzList.innerHTML = "";
+        for (const tz of supportedTimeZones) {
+          const opt = document.createElement("option");
+          const label = buildTzOptionLabel(tz, ms);
+          if (label) {
+            opt.value = tz + " (" + label + ")";
+          } else {
+            opt.value = tz;
+          }
+          tzList.appendChild(opt);
+        }
+      }
+
+      // --- Persistence ---
+      function save() {
+        const data = {
+          zones: state.zones,
+          live: state.live,
+          baseInstantMs: state.baseInstantMs,
+          dayHours,
+          use24Hour,
+        };
+        localStorage.setItem("tz_planner_state", JSON.stringify(data));
+      }
+      function load() {
+        try {
+          const raw = localStorage.getItem("tz_planner_state");
+          if (!raw) return;
+          const data = JSON.parse(raw);
+          if (Array.isArray(data.zones)) state.zones = data.zones;
+          if (typeof data.live === "boolean") state.live = data.live;
+          if (typeof data.baseInstantMs === "number")
+            state.baseInstantMs = data.baseInstantMs;
+          if (Array.isArray(data.dayHours) && data.dayHours.length === 24)
+            dayHours = data.dayHours.map((v) => Boolean(v));
+          if (typeof data.use24Hour === "boolean") use24Hour = data.use24Hour;
+        } catch {}
+      }
+      load();
+      if (state.zones.length === 0) state.zones = [localTz, "UTC"]; // sensible defaults
+      renderTzDatalist();
+
+      // --- Helpers ---
+      function setLive(on) {}
+      function setBaseInstant(ms) {
+        state.baseInstantMs = ms;
+      }
+
+      function toLocalInputValue(date) {
+        const pad = (n) => String(n).padStart(2, "0");
+        const y = date.getFullYear();
+        const m = pad(date.getMonth() + 1);
+        const d = pad(date.getDate());
+        const h = pad(date.getHours());
+        const min = pad(date.getMinutes());
+        return `${y}-${m}-${d}T${h}:${min}`;
+      }
+
+      function baseInstant() {
+        return state.live ? Date.now() : state.baseInstantMs;
+      }
+
+      function formatDateTime(tz, ms) {
+        const d = new Date(ms);
+        const fmt = new Intl.DateTimeFormat(undefined, {
+          timeZone: tz,
+          weekday: "short",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+        return fmt.format(d);
+      }
+
+      function getHour(tz, ms) {
+        const d = new Date(ms);
+        const parts = new Intl.DateTimeFormat(undefined, {
+          timeZone: tz,
+          hour: "2-digit",
+          hour12: false,
+        }).formatToParts(d);
+        const hh = parseInt(
+          parts.find((p) => p.type === "hour")?.value || "0",
+          10
+        );
+        return hh;
+      }
+
+      function getYMD(tz, ms) {
+        const d = new Date(ms);
+        const parts = new Intl.DateTimeFormat(undefined, {
+          timeZone: tz,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).formatToParts(d);
+        const y = parseInt(
+          parts.find((p) => p.type === "year")?.value || "1970",
+          10
+        );
+        const m = parseInt(
+          parts.find((p) => p.type === "month")?.value || "01",
+          10
+        );
+        const day = parseInt(
+          parts.find((p) => p.type === "day")?.value || "01",
+          10
+        );
+        return { y, m, day };
+      }
+
+      function getOffsetMinutes(tz, ms) {
+        try {
+          const s = new Intl.DateTimeFormat(undefined, {
+            timeZone: tz,
+            timeZoneName: "shortOffset",
+            hour: "2-digit",
+          }).format(new Date(ms));
+          const m = s.match(/GMT([+\-])(\d{1,2}):(\d{2})/);
+          if (m) {
+            const sign = m[1] === "-" ? -1 : 1;
+            const hh = parseInt(m[2] || "0", 10);
+            const mm = parseInt(m[3] || "0", 10);
+            return sign * (hh * 60 + mm);
+          }
+        } catch {}
+        // Fallback approximate using formatting trick
+        const locale = "en-US";
+        const fmt = new Intl.DateTimeFormat(locale, {
+          timeZone: tz,
+          hour12: false,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+        const parts = fmt.formatToParts(new Date(ms));
+        const [y, m, d, h, mi, s] = [
+          parseInt(parts.find((p) => p.type === "year")?.value || "1970", 10),
+          parseInt(parts.find((p) => p.type === "month")?.value || "01", 10),
+          parseInt(parts.find((p) => p.type === "day")?.value || "01", 10),
+          parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10),
+          parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10),
+          parseInt(parts.find((p) => p.type === "second")?.value || "0", 10),
+        ];
+        const asIfLocal = Date.UTC(y, m - 1, d, h, mi, s);
+        const diffMin = Math.round((asIfLocal - ms) / 60000);
+        return diffMin;
+      }
+
+      function getTzMidnightUTC(tz, ms) {
+        const { y, m, day } = getYMD(tz, ms);
+        const guessUtc = Date.UTC(y, m - 1, day, 0, 0, 0, 0);
+        const off1 = getOffsetMinutes(tz, guessUtc);
+        let midnightUtc = guessUtc - off1 * 60000;
+        const off2 = getOffsetMinutes(tz, midnightUtc);
+        if (off2 !== off1) {
+          midnightUtc = guessUtc - off2 * 60000;
+        }
+        return midnightUtc;
+      }
+
+      function getDayNightClass(hour) {
+        return dayHours[hour] ? "day" : "night";
+      }
+
+      function getOffsetLabel(tz, ms) {
+        const minutes = getOffsetMinutes(tz, ms);
+        const sign = minutes >= 0 ? "+" : "-";
+        const abs = Math.abs(minutes);
+        const hours = Math.floor(abs / 60);
+        const mins = abs % 60;
+        const hourStr = String(hours);
+        if (mins === 0) return `GMT${sign}${hourStr}`;
+        const minStr = String(mins).padStart(2, "0");
+        return `GMT${sign}${hourStr}:${minStr}`;
+      }
+
+      function getShortTzName(tz, ms) {
+        const d = new Date(ms);
+        try {
+          const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: tz,
+            timeZoneName: "short",
+            hour: "2-digit",
+          }).formatToParts(d);
+          const val = parts.find((p) => p.type === "timeZoneName")?.value || "";
+          return val;
+        } catch {
+          return "";
+        }
+      }
+
+      function dayNight(tz, ms) {
+        const h = getHour(tz, ms);
+        const isDay = h >= 7 && h < 20; // simple heuristic
+        return {
+          isDay,
+          label: isDay ? "Day" : "Night",
+          icon: isDay ? "☀️" : "🌙",
+        };
+      }
+
+      function buildColumnInstants() {
+        const refTz = state.zones[0] || localTz;
+        const startUtc = getTzMidnightUTC(refTz, baseInstant());
+        const cols = new Array(24)
+          .fill(0)
+          .map((_, i) => startUtc + i * 3600000);
+        return { refTz, startUtc, cols };
+      }
+
+      let selectedColIdx = null;
+      let use24Hour = false;
+      let dayHours = Array.from({ length: 24 }, (_, h) => h >= 9 && h <= 17);
+
+      // Initialize format button label based on default once variables exist
+      formatBtn.textContent = use24Hour ? "Format: 24h" : "Format: 12h";
+
+      function renderZones() {
+        const ms = baseInstant();
+        zonesEl.innerHTML = "";
+        const { cols, refTz } = buildColumnInstants();
+        state.zones.forEach((tz) => {
+          const row = document.createElement("div");
+          row.className = "zone";
+
+          const name = document.createElement("div");
+          name.className = "tz-name";
+          name.textContent = tz;
+          const shortTz = getShortTzName(tz, ms);
+          const offsetText = getOffsetLabel(tz, ms);
+          const pieces = [];
+          if (shortTz && !/^GMT/i.test(shortTz)) pieces.push(shortTz);
+          if (offsetText) pieces.push(offsetText);
+          if (pieces.length > 0) {
+            const combined = document.createElement("span");
+            combined.className = "pill";
+            combined.textContent = pieces.join(" / ");
+            name.appendChild(combined);
+          }
+
+          const actions = document.createElement("div");
+          const rm = document.createElement("button");
+          rm.className = "icon-btn";
+          rm.title = "Remove";
+          rm.textContent = "✕";
+          rm.addEventListener("click", () => {
+            state.zones = state.zones.filter((z) => z !== tz);
+            render();
+          });
+          actions.appendChild(rm);
+
+          const timeline = document.createElement("div");
+          timeline.className = "timeline";
+          cols.forEach((colMs, idx) => {
+            const h = getHour(tz, colMs);
+            const cell = document.createElement("div");
+            const dayNightClass = getDayNightClass(h);
+            cell.className =
+              `hour ${dayNightClass}` +
+              (selectedColIdx === idx ? " selected" : "");
+            const hour12 = h % 12 === 0 ? 12 : h % 12;
+            cell.textContent = use24Hour
+              ? String(h).padStart(2, "0")
+              : String(hour12);
+            cell.title = `${tz}: ${String(h).padStart(2, "0")}:00`;
+            cell.addEventListener("click", () => {
+              selectedColIdx = idx;
+              render();
+            });
+            const ampm = document.createElement("div");
+            ampm.className = "ampm";
+            ampm.textContent = h < 12 ? "a" : "p";
+            cell.appendChild(ampm);
+            timeline.appendChild(cell);
+          });
+
+          // Place remove button at the start or end. We'll place at end per request.
+          row.appendChild(name);
+          row.appendChild(timeline);
+          row.appendChild(actions);
+          zonesEl.appendChild(row);
+        });
+        renderSettingsHours();
+      }
+
+      function renderSettingsHours() {
+        if (!settingsHoursEl) return;
+        settingsHoursEl.innerHTML = "";
+        for (let h = 0; h < 24; h++) {
+          const cell = document.createElement("div");
+          cell.className = `hour ${dayHours[h] ? "day" : "night"}`;
+          const hour12 = h % 12 === 0 ? 12 : h % 12;
+          cell.textContent = use24Hour
+            ? String(h).padStart(2, "0")
+            : String(hour12);
+          const ampm = document.createElement("div");
+          ampm.className = "ampm";
+          ampm.textContent = h < 12 ? "a" : "p";
+          cell.appendChild(ampm);
+          cell.title = dayHours[h] ? "Day" : "Night";
+          cell.addEventListener("click", () => {
+            dayHours[h] = !dayHours[h];
+            save();
+            render();
+          });
+          settingsHoursEl.appendChild(cell);
+        }
+      }
+
+      function render() {
+        renderZones();
+        save();
+      }
+
+      // --- Handlers ---
+      document.getElementById("addTz").addEventListener("click", () => {
+        const raw = (tzInput.value || "").trim();
+        if (!raw) return;
+        // Strip any appended metadata in parentheses from the datalist option
+        const v = raw.replace(/\s*\(.*\)$/, "");
+        try {
+          // Validate by attempting to format
+          new Intl.DateTimeFormat(undefined, { timeZone: v }).format(
+            new Date()
+          );
+          if (!state.zones.includes(v)) state.zones.push(v);
+          tzInput.value = "";
+          tzInput.blur();
+          render();
+        } catch {
+          tzInput.style.borderColor = "#e11d48"; // red highlight
+          setTimeout(() => (tzInput.style.borderColor = "#2a2e36"), 800);
+        }
+      });
+
+      // Removed clear button
+
+      // removed live/now controls
+
+      formatBtn.addEventListener("click", () => {
+        use24Hour = !use24Hour;
+        formatBtn.textContent = use24Hour ? "Format: 24h" : "Format: 12h";
+        save();
+        render();
+      });
+
+      // removed base time change handler
+
+      // Suspend live UI updates while typing into timezone input to preserve datalist behavior
+      tzInput.addEventListener("focus", () => {
+        suspendLiveWhileTyping = true;
+      });
+      tzInput.addEventListener("blur", () => {
+        suspendLiveWhileTyping = false;
+      });
+
+      // --- Tickers ---
+      function tick() {
+        if (!suspendLiveWhileTyping) {
+          render();
+          renderTzDatalist();
+        }
+        requestAnimationFrame(() => setTimeout(tick, 1000));
+      }
+
+      // Initial render
+      setBaseInstant(state.baseInstantMs);
+      // Default highlight: current hour in the reference day
+      (function initSelectedCol() {
+        const { cols, refTz } = buildColumnInstants();
+        const now = Date.now();
+        let bestIdx = 0;
+        let bestAbs = Infinity;
+        cols.forEach((ms, idx) => {
+          const diff = Math.abs(ms - now);
+          if (diff < bestAbs) {
+            bestAbs = diff;
+            bestIdx = idx;
+          }
+        });
+        selectedColIdx = bestIdx;
+      })();
+      render();
+      tick();
+    </script>
+  </body>
+</html>
