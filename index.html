@@ -3,11 +3,48 @@
 <title>Mountain Dev Tools</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
+  * {
+    box-sizing: border-box;
+  }
+  :root {
+    --bg: #0e0f11;
+    --panel: #16181c;
+    --ink: #e9ecf1;
+    --muted: #9aa5b1;
+    --accent: #4cc9f0;
+    --radius: 14px;
+  }
+  html,
   body {
-    max-width: 900px;
-    margin: 40px auto;
-    padding: 0 16px;
+    height: 100%;
+  }
+  body {
+    margin: 0;
     font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto;
+    background: linear-gradient(180deg, #0b0c0e, var(--bg));
+    color: var(--ink);
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+  .container {
+    width: 100%;
+    max-width: 900px;
+    background: var(--panel);
+    border: 1px solid #23262d;
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  h1 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  p.sub {
+    margin: 0 0 14px;
+    color: var(--muted);
+    font-size: 14px;
   }
   .grid {
     display: grid;
@@ -15,21 +52,35 @@
     gap: 12px;
   }
   .card {
-    border: 1px solid #eee;
-    border-radius: 8px;
-    padding: 12px;
-  }
-  a {
+    display: block;
+    background: #111317;
+    border: 1px solid #22252c;
+    border-radius: 12px;
+    padding: 14px;
+    color: inherit;
     text-decoration: none;
+    transition: border-color 0.15s ease, transform 0.05s ease;
+  }
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .card small {
+    color: var(--muted);
+  }
+  .card p {
+    margin: 6px 0 0 0;
   }
 </style>
-<h1>Mountain Dev Tools</h1>
-<p>Handy, client-side tools. No tracking. No logins.</p>
-<div class="grid">
-  <div class="card">
-    <strong><a href="./sample-tool.html">Sample Tool</a></strong>
-    <div><small>Updated 2025-08-16</small></div>
-    <p>A barebones template to copy for new tools.</p>
+<div class="container">
+  <h1>Mountain Dev Tools</h1>
+  <p class="sub">Handy, client-side tools. No tracking. No logins.</p>
+  <div class="grid">
+    <a class="card" href="./totp.html">
+      <strong>TOTP</strong>
+      <div><small>Updated 2025-08-16</small></div>
+      <p>Time-based one-time password generator.</p>
+    </a>
+    <!-- Add more cards as you add tools -->
   </div>
-  <!-- Add more cards as you add tools -->
 </div>

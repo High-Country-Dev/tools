@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Offline TOTP Generator</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #0e0f11;
+        --panel: #16181c;
+        --ink: #e9ecf1;
+        --muted: #9aa5b1;
+        --accent: #4cc9f0;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --radius: 14px;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          Helvetica, Arial, "Segoe UI", Roboto, "Noto Sans", "Apple Color Emoji",
+          "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+        background: linear-gradient(180deg, #0b0c0e, var(--bg));
+        color: var(--ink);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .container {
+        width: 100%;
+        max-width: 800px;
+        background: var(--panel);
+        border: 1px solid #23262d;
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      p.sub {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      @media (min-width: 820px) {
+        .grid {
+          grid-template-columns: 1.5fr 1fr;
+        }
+      }
+      .card {
+        background: #111317;
+        border: 1px solid #22252c;
+        border-radius: 12px;
+        padding: 14px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        width: 100%;
+        font-size: 16px;
+        font-family: Helvetica, Arial, sans-serif;
+      }
+      input[type="text"],
+      input[type="number"],
+      textarea,
+      select {
+        background: #0f1115;
+        color: var(--ink);
+        border: 1px solid #2a2e36;
+        border-radius: 10px;
+        padding: 10px 12px;
+        outline: none;
+      }
+      input[type="text"]:focus,
+      input[type="number"]:focus,
+      textarea:focus,
+      select:focus {
+        border-color: var(--accent);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      button {
+        background: linear-gradient(180deg, #1c2027, #15181d);
+        color: var(--ink);
+        border: 1px solid #262a32;
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button.primary {
+        background: linear-gradient(180deg, #2a7bb6, #1a5d8a);
+        border-color: #1a5d8a;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        border: 1px solid #2b3038;
+        color: var(--muted);
+      }
+      .code {
+        font-variant-numeric: tabular-nums;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        letter-spacing: 0.06em;
+      }
+      .big {
+        font-size: 36px;
+        font-weight: 800;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 8px 10px;
+        font-size: 14px;
+      }
+      .dim {
+        color: var(--muted);
+      }
+      .inline {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #242831;
+        margin: 12px 0;
+      }
+      .helper {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .warn {
+        color: var(--warn);
+      }
+      .ok {
+        color: var(--ok);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Offline TOTP Generator</h1>
+      <p class="sub">
+        Generate 6-digit (or custom) one-time passwords from your manual setup
+        key. Works with Base32 secrets and
+        <span class="mono">otpauth://</span> URIs.
+      </p>
+
+      <div class="grid">
+        <div class="card">
+          <label for="secret"
+            >Secret or <span class="mono">otpauth://</span> URI</label
+          >
+          <textarea
+            id="secret"
+            rows="3"
+            placeholder="JBSWY3DPEHPK3PXP  (or paste otpauth://totp/Issuer:Account?...)"
+            spellcheck="false"
+          ></textarea>
+          <div class="helper">
+            Tip: The “secret” is the Base32 key shown when you choose “enter a
+            setup key instead of scanning a QR”.
+          </div>
+
+          <div class="row" style="margin-top: 12px">
+            <div>
+              <label for="algo">Hash</label>
+              <select id="algo">
+                <option value="SHA-1">SHA-1 (default)</option>
+                <option value="SHA-256">SHA-256</option>
+                <option value="SHA-512">SHA-512</option>
+              </select>
+            </div>
+            <div>
+              <label for="digits">Digits</label>
+              <input type="number" id="digits" min="6" max="10" value="6" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label for="period">Time Step (seconds)</label>
+              <input type="number" id="period" min="5" max="120" value="30" />
+            </div>
+            <div>
+              <label for="offset">Time Offset (seconds)</label>
+              <input type="number" id="offset" value="0" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: 8px">
+            <button id="parseUri">Parse otpauth URI</button>
+            <button id="now" class="primary">Generate Now</button>
+          </div>
+
+          <hr />
+
+          <div class="row">
+            <div>
+              <label for="customTime">Custom Unix Time (seconds)</label>
+              <input
+                type="number"
+                id="customTime"
+                placeholder="Leave blank to use current time"
+              />
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <button id="fromCustom">Generate for Custom Time</button>
+            </div>
+          </div>
+
+          <div class="helper">
+            You can generate codes for adjacent windows below to account for
+            small clock drift.
+          </div>
+          <div class="row" style="margin-top: 8px">
+            <button id="prevWindow">⟵ Previous Window</button>
+            <button id="nextWindow">Next Window ⟶</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="inline" style="justify-content: space-between">
+            <span class="badge">Status</span>
+            <span id="clock" class="mono dim"></span>
+          </div>
+
+          <div style="margin-top: 10px">
+            <div class="dim">Current Code</div>
+            <div id="code" class="code big">——— ---</div>
+            <div class="kv" style="margin-top: 10px">
+              <div class="dim">Time Step</div>
+              <div id="stepLbl">30s</div>
+              <div class="dim">Remaining</div>
+              <div id="remaining">—</div>
+              <div class="dim">Counter</div>
+              <div id="counter">—</div>
+              <div class="dim">Algorithm</div>
+              <div id="algoLbl">SHA-1</div>
+            </div>
+          </div>
+
+          <hr />
+          <div>
+            <div class="dim">Adjacent Windows</div>
+            <div class="kv" style="margin-top: 8px">
+              <div class="dim">Previous</div>
+              <div id="prevCode" class="code">—</div>
+              <div class="dim">Next</div>
+              <div id="nextCode" class="code">—</div>
+            </div>
+          </div>
+
+          <hr />
+          <div class="helper warn">
+            Security: Keep this file and your secret offline. Anyone with the
+            secret can generate your codes.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      // code in here should not be indented at the first level
+
+      // ---------- Base32 (RFC 4648) decoder ----------
+      const b32map = (() => {
+        const m = {};
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+          .split("")
+          .forEach((ch, i) => (m[ch] = i));
+        return m;
+      })();
+      function cleanBase32(s) {
+        s = s.toUpperCase().replace(/[\s-]+/g, "");
+        return s.replace(/=+$/g, ""); // strip padding if present
+      }
+      function base32ToBytes(s) {
+        s = cleanBase32(s);
+        let bits = 0,
+          value = 0;
+        const out = [];
+        for (let i = 0; i < s.length; i++) {
+          const c = s[i];
+          if (!(c in b32map)) throw new Error("Invalid Base32 character: " + c);
+          value = (value << 5) | b32map[c];
+          bits += 5;
+          if (bits >= 8) {
+            bits -= 8;
+            out.push((value >>> bits) & 0xff);
+          }
+        }
+        return new Uint8Array(out);
+      }
+
+      // ---------- HOTP/TOTP core (RFC 4226 / RFC 6238) ----------
+      function counterTo8BytesBigEndian(counter) {
+        const buf = new ArrayBuffer(8);
+        const view = new DataView(buf);
+        const hi = Math.floor(counter / 0x100000000);
+        const lo = counter >>> 0;
+        view.setUint32(0, hi);
+        view.setUint32(4, lo);
+        return new Uint8Array(buf);
+      }
+
+      async function hmacDigest(keyBytes, messageBytes, hash = "SHA-1") {
+        const cryptoKey = await crypto.subtle.importKey(
+          "raw",
+          keyBytes,
+          { name: "HMAC", hash: { name: hash } },
+          false,
+          ["sign"]
+        );
+        const sig = await crypto.subtle.sign("HMAC", cryptoKey, messageBytes);
+        return new Uint8Array(sig);
+      }
+
+      function dynamicTruncate(hmac) {
+        const offset = hmac[hmac.length - 1] & 0x0f;
+        return (
+          ((hmac[offset] & 0x7f) << 24) |
+          (hmac[offset + 1] << 16) |
+          (hmac[offset + 2] << 8) |
+          hmac[offset + 3]
+        );
+      }
+
+      function hotpFromHmac(hmacBytes, digits = 6) {
+        const bin = dynamicTruncate(hmacBytes);
+        const mod = 10 ** digits;
+        const otp = (bin % mod).toString().padStart(digits, "0");
+        return otp;
+      }
+
+      async function hotp(secretBytes, counter, hash = "SHA-1", digits = 6) {
+        const msg = counterTo8BytesBigEndian(counter);
+        const mac = await hmacDigest(secretBytes, msg, hash);
+        return hotpFromHmac(mac, digits);
+      }
+
+      async function totp(
+        secretBytes,
+        timeSec,
+        period = 30,
+        hash = "SHA-1",
+        digits = 6,
+        t0 = 0
+      ) {
+        const counter = Math.floor((timeSec - t0) / period);
+        const code = await hotp(secretBytes, counter, hash, digits);
+        return { code, counter };
+      }
+
+      // ---------- otpauth:// URI parsing ----------
+      function parseOtpAuth(uri) {
+        try {
+          const u = new URL(uri);
+          if (u.protocol !== "otpauth:") return null;
+          const type = u.hostname; // totp | hotp
+          const secret = u.searchParams.get("secret") || "";
+          const issuer = u.searchParams.get("issuer") || "";
+          const algorithm = (u.searchParams.get("algorithm") || "SHA1")
+            .toUpperCase()
+            .replace("SHA1", "SHA-1")
+            .replace("SHA256", "SHA-256")
+            .replace("SHA512", "SHA-512");
+          const digits = parseInt(u.searchParams.get("digits") || "6", 10);
+          const period = parseInt(u.searchParams.get("period") || "30", 10);
+          const counter = parseInt(u.searchParams.get("counter") || "0", 10);
+          return { type, secret, issuer, algorithm, digits, period, counter };
+        } catch {
+          return null;
+        }
+      }
+
+      // ---------- UI wiring ----------
+      const el = (id) => document.getElementById(id);
+      const secretEl = el("secret");
+      const algoEl = el("algo");
+      const digitsEl = el("digits");
+      const periodEl = el("period");
+      const offsetEl = el("offset");
+      const customTimeEl = el("customTime");
+
+      const codeEl = el("code");
+      const stepLbl = el("stepLbl");
+      const algoLbl = el("algoLbl");
+      const remainingEl = el("remaining");
+      const counterEl = el("counter");
+      const clockEl = el("clock");
+      const prevCodeEl = el("prevCode");
+      const nextCodeEl = el("nextCode");
+
+      let lastSecretBytes = null;
+      let lastError = null;
+      let manualEpoch = null;
+
+      function getConfig() {
+        return {
+          hash: algoEl.value,
+          digits: Math.min(
+            10,
+            Math.max(6, parseInt(digitsEl.value || "6", 10))
+          ),
+          period: Math.min(
+            120,
+            Math.max(5, parseInt(periodEl.value || "30", 10))
+          ),
+          offset: parseInt(offsetEl.value || "0", 10),
+        };
+      }
+
+      // --- Helpers to move by whole TOTP windows using time, not counter ---
+      function currentEpochSec() {
+        return Math.floor(Date.now() / 1000);
+      }
+      function windowIndexForTime(t, period, offset) {
+        return Math.floor((t + offset) / period);
+      }
+      function epochForWindowIndex(idx, period, offset) {
+        // Pick a representative time inside the window. +1 to avoid boundary edge cases.
+        return idx * period - offset + 1;
+      }
+      async function generateForEpoch(epoch) {
+        manualEpoch = epoch;
+        await ensureSecretBytes();
+        const res = await generateAt(epoch, 0);
+        setCodeText(res.code, true);
+        updateMetaUI({
+          period: getConfig().period,
+          hash: getConfig().hash,
+          counter: res.counter,
+          remaining: res.remaining,
+        });
+
+        // Also compute adjacent window codes relative to this epoch
+        const { period, offset } = getConfig();
+        const idx = windowIndexForTime(epoch, period, offset);
+        const prevEpoch = epochForWindowIndex(idx - 1, period, offset);
+        const nextEpoch = epochForWindowIndex(idx + 1, period, offset);
+        const prev = await generateAt(prevEpoch, 0);
+        const next = await generateAt(nextEpoch, 0);
+        prevCodeEl.textContent = prev.code;
+        nextCodeEl.textContent = next.code;
+      }
+
+      // --- Replace the existing handlers with these ---
+
+      el("fromCustom").addEventListener("click", async () => {
+        const v = customTimeEl.value.trim();
+        if (!v) {
+          // No custom time? Use "now" but ensure the field is filled to the start of the current window.
+          const { period, offset } = getConfig();
+          const now = currentEpochSec();
+          const idx = windowIndexForTime(now, period, offset);
+          const startOfWindow = epochForWindowIndex(idx, period, offset);
+          customTimeEl.value = String(startOfWindow);
+          return generateForEpoch(startOfWindow);
+        }
+        const epoch = parseInt(v, 10);
+        if (Number.isNaN(epoch))
+          return setCodeText("Custom time must be a number", false);
+        return generateForEpoch(epoch);
+      });
+
+      el("prevWindow").addEventListener("click", async () => {
+        try {
+          const { period, offset } = getConfig();
+          const base = customTimeEl.value.trim()
+            ? parseInt(customTimeEl.value, 10)
+            : currentEpochSec();
+          if (Number.isNaN(base))
+            return setCodeText("Custom time must be a number", false);
+          const idx = windowIndexForTime(base, period, offset);
+          const target = epochForWindowIndex(idx - 1, period, offset);
+          customTimeEl.value = String(target);
+          await generateForEpoch(target);
+        } catch (e) {
+          setCodeText(e.message || "Error moving to previous window", false);
+        }
+      });
+
+      el("nextWindow").addEventListener("click", async () => {
+        try {
+          const { period, offset } = getConfig();
+          const base = customTimeEl.value.trim()
+            ? parseInt(customTimeEl.value, 10)
+            : currentEpochSec();
+          if (Number.isNaN(base))
+            return setCodeText("Custom time must be a number", false);
+          const idx = windowIndexForTime(base, period, offset);
+          const target = epochForWindowIndex(idx + 1, period, offset);
+          customTimeEl.value = String(target);
+          await generateForEpoch(target);
+        } catch (e) {
+          setCodeText(e.message || "Error moving to next window", false);
+        }
+      });
+
+      function normalizeSecretInput() {
+        const raw = secretEl.value.trim();
+        const parsed = parseOtpAuth(raw);
+        if (parsed && parsed.secret) {
+          algoEl.value = parsed.algorithm || "SHA-1";
+          digitsEl.value = String(parsed.digits || 6);
+          periodEl.value = String(parsed.period || 30);
+          secretEl.value = parsed.secret;
+        }
+      }
+
+      el("parseUri").addEventListener("click", () => {
+        normalizeSecretInput();
+        tick(true);
+      });
+
+      async function ensureSecretBytes() {
+        const raw = secretEl.value.trim();
+        if (!raw)
+          throw new Error("Enter a Base32 secret or an otpauth:// URI.");
+        const parsed = parseOtpAuth(raw);
+        const secretB32 = parsed?.secret ? parsed.secret : raw;
+        try {
+          lastSecretBytes = base32ToBytes(secretB32);
+          return lastSecretBytes;
+        } catch (e) {
+          throw new Error("Secret must be Base32 (A–Z, 2–7). " + e.message);
+        }
+      }
+
+      function fmtRemaining(sec) {
+        if (sec < 10) return `${sec}s ⏳`;
+        return `${sec}s`;
+      }
+
+      function updateMetaUI({ period, hash, counter, remaining }) {
+        stepLbl.textContent = `${period}s`;
+        algoLbl.textContent = hash;
+        counterEl.textContent = String(counter);
+        remainingEl.textContent = fmtRemaining(remaining);
+      }
+
+      function setCodeText(text, ok = true) {
+        codeEl.textContent = text;
+        codeEl.style.color = ok ? "var(--ink)" : "var(--warn)";
+        if (ok) {
+          codeEl.classList.add("big");
+        } else {
+          codeEl.classList.remove("big");
+        }
+      }
+
+      async function generateAt(epochSec, windowShift = 0) {
+        const { hash, digits, period, offset } = getConfig();
+        const t = epochSec + offset;
+        const ctr = Math.floor(t / period) + windowShift;
+        const bytes = lastSecretBytes ?? (await ensureSecretBytes());
+        const code = await hotp(bytes, ctr, hash, digits);
+        const remaining = period - (Math.floor(t) % period);
+        return { code, counter: ctr, remaining };
+      }
+
+      async function tick(force = false) {
+        try {
+          if (!force && manualEpoch !== null) return;
+          const now = Math.floor(Date.now() / 1000);
+          if (force || lastError) await ensureSecretBytes();
+          const curr = await generateAt(now, 0);
+          const prev = await generateAt(now, -1);
+          const next = await generateAt(now, +1);
+          setCodeText(curr.code, true);
+          prevCodeEl.textContent = prev.code;
+          nextCodeEl.textContent = next.code;
+          updateMetaUI({
+            period: getConfig().period,
+            hash: getConfig().hash,
+            counter: curr.counter,
+            remaining: curr.remaining,
+          });
+          lastError = null;
+        } catch (e) {
+          lastError = e;
+          setCodeText(e.message, false);
+          prevCodeEl.textContent = "—";
+          nextCodeEl.textContent = "—";
+          remainingEl.textContent = "—";
+          counterEl.textContent = "—";
+        }
+      }
+
+      el("now").addEventListener("click", () => {
+        manualEpoch = null;
+        customTimeEl.value = "";
+        tick(true);
+      });
+
+      // Live clock & auto-refresh
+      function updateClock() {
+        const d = new Date();
+        clockEl.textContent = d.toLocaleString(undefined, { hour12: false });
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      let lastSecond = -1;
+      function loop() {
+        const sec = Math.floor(Date.now() / 1000);
+        if (sec !== lastSecond) {
+          lastSecond = sec;
+          tick(false);
+        }
+        requestAnimationFrame(loop);
+      }
+      loop();
+
+      // Prefill helpers (optional): focus secret box
+      secretEl.focus();
+    </script>
+  </body>
+</html>
