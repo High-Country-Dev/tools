@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Offline EXIF Viewer</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #0e0f11;
+        --panel: #16181c;
+        --ink: #e9ecf1;
+        --muted: #9aa5b1;
+        --accent: #4cc9f0;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --radius: 14px;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          Helvetica, Arial, "Segoe UI", Roboto, "Noto Sans", "Apple Color Emoji",
+          "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+        background: linear-gradient(180deg, #0b0c0e, var(--bg));
+        color: var(--ink);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .container {
+        width: 100%;
+        max-width: 1000px;
+        background: var(--panel);
+        border: 1px solid #23262d;
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      p.sub {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      @media (min-width: 920px) {
+        .grid {
+          grid-template-columns: 1.2fr 1fr;
+        }
+      }
+      .card {
+        background: #111317;
+        border: 1px solid #22252c;
+        border-radius: 12px;
+        padding: 14px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        width: 100%;
+        font-size: 16px;
+        font-family: Helvetica, Arial, sans-serif;
+      }
+      input[type="text"],
+      input[type="url"],
+      input[type="file"],
+      textarea,
+      select {
+        background: #0f1115;
+        color: var(--ink);
+        border: 1px solid #2a2e36;
+        border-radius: 10px;
+        padding: 10px 12px;
+        outline: none;
+      }
+      input[type="text"]:focus,
+      input[type="url"]:focus,
+      input[type="file"]:focus,
+      textarea:focus,
+      select:focus {
+        border-color: var(--accent);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      button {
+        background: linear-gradient(180deg, #1c2027, #15181d);
+        color: var(--ink);
+        border: 1px solid #262a32;
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button.primary {
+        background: linear-gradient(180deg, #2a7bb6, #1a5d8a);
+        border-color: #1a5d8a;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        border: 1px solid #2b3038;
+        color: var(--muted);
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 8px 10px;
+        font-size: 14px;
+      }
+      .dim {
+        color: var(--muted);
+      }
+      .helper {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #242831;
+        margin: 12px 0;
+      }
+      .previewWrap {
+        background: #0f1115;
+        border: 1px solid #2a2e36;
+        border-radius: 12px;
+        padding: 8px;
+        display: grid;
+        place-items: center;
+        min-height: 200px;
+      }
+      #preview {
+        max-width: 100%;
+        max-height: 420px;
+        border-radius: 8px;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Offline EXIF Viewer</h1>
+      <p class="sub">
+        Inspect EXIF metadata from images entirely in your browser. Load a file
+        or fetch from a URL.
+      </p>
+
+      <div class="grid">
+        <div class="card">
+          <div class="row">
+            <div>
+              <label for="file">Choose Image File</label>
+              <input id="file" type="file" accept="image/*" />
+            </div>
+            <div>
+              <label for="url">Or Image URL</label>
+              <input
+                id="url"
+                type="url"
+                placeholder="https://example.com/photo.jpg"
+              />
+            </div>
+          </div>
+          <div class="row" style="margin-top: 10px">
+            <button id="loadUrl">Load URL</button>
+            <button id="clear">Clear</button>
+          </div>
+
+          <hr />
+
+          <div class="helper">
+            Privacy: Files never leave your device. For URLs, the browser will
+            fetch the image; some servers may block cross-origin requests.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="previewWrap">
+            <img id="preview" alt="Preview" />
+          </div>
+
+          <hr />
+          <div class="kv" id="basicKv">
+            <div class="dim">Source</div>
+            <div id="srcLabel">—</div>
+            <div class="dim">Format</div>
+            <div id="fmt">—</div>
+            <div class="dim">Dimensions</div>
+            <div id="dims">—</div>
+            <div class="dim">File Size</div>
+            <div id="size">—</div>
+          </div>
+
+          <hr />
+          <div>
+            <div class="dim" style="margin-bottom: 6px">EXIF Metadata</div>
+            <div class="kv" id="exifKv"></div>
+            <div id="noExif" class="helper" style="display: none">
+              No EXIF data found.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      // code in here should not be indented at the first level
+
+      const el = (id) => document.getElementById(id);
+      const fileEl = el("file");
+      const urlEl = el("url");
+      const loadUrlBtn = el("loadUrl");
+      const clearBtn = el("clear");
+      const imgEl = el("preview");
+      const srcLabel = el("srcLabel");
+      const fmtEl = el("fmt");
+      const dimsEl = el("dims");
+      const sizeEl = el("size");
+      const exifKv = el("exifKv");
+      const noExif = el("noExif");
+
+      function resetUI() {
+        imgEl.removeAttribute("src");
+        srcLabel.textContent = "—";
+        fmtEl.textContent = "—";
+        dimsEl.textContent = "—";
+        sizeEl.textContent = "—";
+        exifKv.innerHTML = "";
+        noExif.style.display = "none";
+      }
+
+      function humanBytes(n) {
+        if (!Number.isFinite(n)) return "—";
+        const units = ["B", "KB", "MB", "GB"];
+        let i = 0;
+        while (n >= 1024 && i < units.length - 1) {
+          n /= 1024;
+          i++;
+        }
+        return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+      }
+
+      function setBasicInfo({ source, sizeBytes, format }) {
+        srcLabel.textContent = source;
+        sizeEl.textContent = sizeBytes != null ? humanBytes(sizeBytes) : "—";
+        fmtEl.textContent = format || "—";
+      }
+
+      function updateDimsOnLoad(img) {
+        const update = () => {
+          if (img.naturalWidth && img.naturalHeight) {
+            dimsEl.textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
+          }
+        };
+        if (img.complete) update();
+        img.addEventListener("load", update, { once: true });
+      }
+
+      function addKvRow(key, value) {
+        const k = document.createElement("div");
+        k.className = "dim";
+        k.textContent = key;
+        const v = document.createElement("div");
+        v.textContent = value;
+        exifKv.appendChild(k);
+        exifKv.appendChild(v);
+      }
+
+      // ---- Minimal JPEG/EXIF parser ----
+      function getString(view, offset, length) {
+        let s = "";
+        for (let i = 0; i < length; i++)
+          s += String.fromCharCode(view.getUint8(offset + i));
+        return s;
+      }
+
+      function parseExifFromArrayBuffer(buf) {
+        const view = new DataView(buf);
+        if (view.byteLength < 4) return { exif: null };
+        // JPEG?
+        const soi = view.getUint16(0);
+        if (soi !== 0xffd8) return { exif: null }; // not JPEG
+        let offset = 2;
+        while (offset + 4 <= view.byteLength) {
+          if (view.getUint8(offset) !== 0xff) {
+            offset++;
+            continue;
+          }
+          const marker = view.getUint16(offset);
+          offset += 2;
+          // Standalone markers
+          if (marker === 0xffda /*SOS*/ || marker === 0xffd9 /*EOI*/) break;
+          const size = view.getUint16(offset);
+          const segmentStart = offset + 2;
+          if (marker === 0xffe1 && size >= 8) {
+            // APP1
+            const header = getString(view, segmentStart, 6);
+            if (header === "Exif\x00\x00") {
+              try {
+                const exif = parseTiff(view, segmentStart + 6);
+                return { exif };
+              } catch (e) {
+                return { exif: null, error: e?.message || String(e) };
+              }
+            }
+          }
+          offset += size;
+        }
+        return { exif: null };
+      }
+
+      function parseTiff(view, tiffStart) {
+        const endianMark = getString(view, tiffStart, 2);
+        const little = endianMark === "II";
+        const get16 = (o) => view.getUint16(o, little);
+        const get32 = (o) => view.getUint32(o, little);
+        const typeSize = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
+        if (get16(tiffStart + 2) !== 0x002a)
+          throw new Error("Invalid TIFF header");
+        const ifd0Offset = get32(tiffStart + 4);
+
+        function readValue(type, count, dataPtr) {
+          const stride = typeSize[type] || 1;
+          const readAt = (off) => {
+            switch (type) {
+              case 1:
+                return view.getUint8(off);
+              case 2:
+                return view.getUint8(off); // handled as bytes below
+              case 3:
+                return view.getUint16(off, little);
+              case 4:
+                return view.getUint32(off, little);
+              case 5: {
+                const num = view.getUint32(off, little);
+                const den = view.getUint32(off + 4, little);
+                return den ? num / den : 0;
+              }
+              case 7:
+                return view.getUint8(off);
+              case 9:
+                return view.getInt32(off, little);
+              case 10: {
+                const num = view.getInt32(off, little);
+                const den = view.getInt32(off + 4, little);
+                return den ? num / den : 0;
+              }
+              default:
+                return undefined;
+            }
+          };
+          if (type === 2) {
+            let s = "";
+            for (let i = 0; i < count; i++)
+              s += String.fromCharCode(view.getUint8(dataPtr + i));
+            return s.replace(/\x00+$/, "");
+          }
+          if (count === 1) return readAt(dataPtr);
+          const out = [];
+          for (let i = 0; i < count; i++)
+            out.push(readAt(dataPtr + i * stride));
+          return out;
+        }
+
+        function readIFD(dirOffset) {
+          const entries = get16(tiffStart + dirOffset);
+          const out = { raw: {}, nextIFDOffset: 0 };
+          for (let i = 0; i < entries; i++) {
+            const entry = tiffStart + dirOffset + 2 + i * 12;
+            const tag = get16(entry);
+            const type = get16(entry + 2);
+            const count = get32(entry + 4);
+            const valueOrOffset = get32(entry + 8);
+            const total = (typeSize[type] || 0) * count;
+            const dataPtr = total > 4 ? tiffStart + valueOrOffset : entry + 8;
+            const val = readValue(type, count, dataPtr);
+            out.raw[tag] = val;
+          }
+          out.nextIFDOffset = get32(tiffStart + dirOffset + 2 + entries * 12);
+          return out;
+        }
+
+        const TAGS = {
+          0x010f: "Make",
+          0x0110: "Model",
+          0x0112: "Orientation",
+          0x0132: "ModifyDate",
+          0x0131: "Software",
+          0x8769: "ExifIFDPointer",
+          0x8825: "GPSInfoIFDPointer",
+          // EXIF SubIFD
+          0x829a: "ExposureTime",
+          0x829d: "FNumber",
+          0x8827: "ISO",
+          0x9003: "DateTimeOriginal",
+          0x9004: "CreateDate",
+          0x9201: "ShutterSpeedValue",
+          0x9202: "ApertureValue",
+          0x9204: "ExposureBiasValue",
+          0x9206: "SubjectDistance",
+          0x9207: "MeteringMode",
+          0x9209: "Flash",
+          0x920a: "FocalLength",
+          0xa002: "PixelXDimension",
+          0xa003: "PixelYDimension",
+          0xa405: "FocalLengthIn35mmFormat",
+          0xa406: "SceneCaptureType",
+          0xa432: "LensInfo",
+          0xa434: "LensModel",
+          0xa433: "LensMake",
+          0xa403: "WhiteBalance",
+          // GPS
+          0x0000: "GPSVersionID",
+          0x0001: "GPSLatitudeRef",
+          0x0002: "GPSLatitude",
+          0x0003: "GPSLongitudeRef",
+          0x0004: "GPSLongitude",
+          0x0005: "GPSAltitudeRef",
+          0x0006: "GPSAltitude",
+          0x0007: "GPSTimeStamp",
+          0x001d: "GPSDateStamp",
+        };
+
+        const ifd0 = readIFD(ifd0Offset);
+        const out = {};
+        for (const [k, v] of Object.entries(ifd0.raw)) {
+          const name = TAGS[Number(k)];
+          if (name) out[name] = v;
+        }
+        // EXIF SubIFD
+        const exifPtr = ifd0.raw[0x8769];
+        if (typeof exifPtr === "number") {
+          const exif = readIFD(exifPtr);
+          for (const [k, v] of Object.entries(exif.raw)) {
+            const name = TAGS[Number(k)];
+            if (name) out[name] = v;
+          }
+        }
+        // GPS IFD
+        const gpsPtr = ifd0.raw[0x8825];
+        if (typeof gpsPtr === "number") {
+          const gps = readIFD(gpsPtr);
+          const gpsOut = {};
+          for (const [k, v] of Object.entries(gps.raw)) {
+            const name = TAGS[Number(k)];
+            if (name) gpsOut[name] = v;
+          }
+          out.GPS = gpsOut;
+        }
+        return out;
+      }
+
+      function formatExposureTime(v) {
+        if (!v) return undefined;
+        if (v >= 1) return `${v.toFixed(2)} s`;
+        const denom = Math.round(1 / v);
+        return `1/${denom}`;
+      }
+
+      function formatFNumber(v) {
+        if (!v) return undefined;
+        return `f/${v.toFixed(1)}`;
+      }
+
+      function formatFocal(v) {
+        if (!v) return undefined;
+        return `${v.toFixed(0)} mm`;
+      }
+
+      function toDecimalDegrees(ref, arr) {
+        if (!Array.isArray(arr) || arr.length < 3) return undefined;
+        const [d, m, s] = arr;
+        let dec = d + m / 60 + s / 3600;
+        if (ref === "S" || ref === "W") dec *= -1;
+        return dec;
+      }
+
+      function populateExif(exif) {
+        exifKv.innerHTML = "";
+        if (!exif || Object.keys(exif).length === 0) {
+          noExif.style.display = "block";
+          return;
+        }
+        noExif.style.display = "none";
+
+        const rows = [];
+        const push = (k, v) => {
+          if (v != null && v !== "") rows.push([k, String(v)]);
+        };
+        push("Make", exif.Make);
+        push("Model", exif.Model);
+        push(
+          "Lens",
+          exif.LensModel ||
+            (Array.isArray(exif.LensInfo)
+              ? exif.LensInfo.join(", ")
+              : exif.LensInfo)
+        );
+        push(
+          "Taken",
+          exif.DateTimeOriginal || exif.CreateDate || exif.ModifyDate
+        );
+        push("Exposure", formatExposureTime(exif.ExposureTime));
+        push("Aperture", formatFNumber(exif.FNumber || exif.ApertureValue));
+        push("ISO", exif.ISO);
+        push("Focal Length", formatFocal(exif.FocalLength));
+        push("Orientation", exif.Orientation);
+        push("Software", exif.Software);
+        push(
+          "Dimensions (EXIF)",
+          exif.PixelXDimension && exif.PixelYDimension
+            ? `${exif.PixelXDimension} × ${exif.PixelYDimension}`
+            : undefined
+        );
+
+        if (exif.GPS) {
+          const lat = toDecimalDegrees(
+            exif.GPS.GPSLatitudeRef,
+            exif.GPS.GPSLatitude
+          );
+          const lon = toDecimalDegrees(
+            exif.GPS.GPSLongitudeRef,
+            exif.GPS.GPSLongitude
+          );
+          if (lat != null && lon != null)
+            push("GPS", `${lat.toFixed(6)}, ${lon.toFixed(6)}`);
+          if (exif.GPS.GPSAltitude != null)
+            push("Altitude", `${Number(exif.GPS.GPSAltitude).toFixed(1)} m`);
+          if (exif.GPS.GPSDateStamp) push("GPS Date", exif.GPS.GPSDateStamp);
+        }
+
+        for (const [k, v] of rows) addKvRow(k, v);
+      }
+
+      async function loadFromFile(file) {
+        resetUI();
+        const url = URL.createObjectURL(file);
+        imgEl.src = url;
+        setBasicInfo({
+          source: file.name,
+          sizeBytes: file.size,
+          format: file.type || "—",
+        });
+        updateDimsOnLoad(imgEl);
+        const buf = await file.arrayBuffer();
+        const { exif } = parseExifFromArrayBuffer(buf);
+        populateExif(exif);
+      }
+
+      async function loadFromUrl(urlStr) {
+        resetUI();
+        srcLabel.textContent = urlStr;
+        imgEl.src = urlStr;
+        updateDimsOnLoad(imgEl);
+        try {
+          const res = await fetch(urlStr, { mode: "cors" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const blob = await res.blob();
+          setBasicInfo({
+            source: urlStr,
+            sizeBytes: blob.size,
+            format: blob.type || "—",
+          });
+          const buf = await blob.arrayBuffer();
+          const { exif } = parseExifFromArrayBuffer(buf);
+          populateExif(exif);
+        } catch (e) {
+          setBasicInfo({ source: urlStr, sizeBytes: undefined, format: "—" });
+          exifKv.innerHTML = "";
+          noExif.style.display = "block";
+          noExif.textContent = `Could not fetch or parse EXIF (${
+            e?.message || e
+          }).`;
+        }
+      }
+
+      fileEl.addEventListener("change", () => {
+        const f = fileEl.files && fileEl.files[0];
+        if (f) loadFromFile(f);
+      });
+
+      loadUrlBtn.addEventListener("click", () => {
+        const v = urlEl.value.trim();
+        if (!v) return;
+        try {
+          new URL(v);
+        } catch {
+          alert("Enter a valid URL");
+          return;
+        }
+        loadFromUrl(v);
+      });
+
+      clearBtn.addEventListener("click", () => {
+        fileEl.value = "";
+        urlEl.value = "";
+        resetUI();
+      });
+
+      // initial state
+      resetUI();
+    </script>
+  </body>
+</html>
