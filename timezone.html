@@ -171,7 +171,7 @@
         align-items: center;
       }
       .settings-hours .hour {
-        height: 28px;
+        height: 36px;
         font-size: 12px;
       }
       .hour {
@@ -234,6 +234,87 @@
         padding: 6px 10px;
         border-radius: 8px;
       }
+      /* Map preview */
+      .map-card {
+        position: relative;
+      }
+      .world-map {
+        width: 100%;
+        height: 180px;
+        background: #0f1115
+          url("https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1024px-World_map_-_low_resolution.svg.png")
+          no-repeat;
+        background-size: cover;
+        /* Allow fine-tuned positioning to align strips with the map */
+        background-position: calc(50% + var(--map-x-offset, 0px))
+          calc(50% + var(--map-y-offset, 0px));
+        border: 1px solid #22252c;
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+      }
+      .world-map::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.08),
+          rgba(0, 0, 0, 0.12)
+        );
+        pointer-events: none;
+      }
+      .zone-strip {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        background: rgba(76, 201, 240, 0.08);
+        border-left: 1px solid rgba(76, 201, 240, 0.18);
+        border-right: 1px solid rgba(76, 201, 240, 0.18);
+        cursor: pointer;
+        transition: background 120ms ease, opacity 120ms ease;
+        z-index: 1;
+      }
+      .zone-strip:hover {
+        background: rgba(76, 201, 240, 0.14);
+      }
+      .zone-strip.active {
+        background: rgba(76, 201, 240, 0.28);
+        box-shadow: inset 0 0 0 1px rgba(76, 201, 240, 0.35);
+      }
+      .zone-strip .strip-label {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        font-size: 10px;
+        line-height: 1;
+        color: #d6e2ee;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        opacity: 0.9;
+      }
+      .map-popover {
+        position: absolute;
+        min-width: 180px;
+        background: #0f1115;
+        border: 1px solid #2a2e36;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        padding: 8px;
+        z-index: 10;
+      }
+      .map-popover h4 {
+        margin: 0 0 6px;
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .map-popover .opt {
+        width: 100%;
+        text-align: left;
+        margin: 4px 0;
+        font-size: 13px;
+      }
     </style>
   </head>
   <body>
@@ -245,6 +326,18 @@
       </p>
 
       <div class="grid">
+        <div class="card">
+          <div class="row map-card">
+            <div>
+              <label>Map preview</label>
+              <div
+                class="world-map"
+                id="worldMap"
+                style="--map-x-offset: 23px"
+              ></div>
+            </div>
+          </div>
+        </div>
         <div class="card">
           <div
             class="zone header"
@@ -306,6 +399,8 @@
       const localTzLbl = { textContent: "" };
       const formatBtn = el("formatBtn");
       const settingsHoursEl = el("settingsHours");
+      const worldMapEl = document.getElementById("worldMap");
+      const STRIP_COUNT = 24; // 24 longitudinal strips
       let suspendLiveWhileTyping = false;
 
       const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -395,6 +490,21 @@
 
       function baseInstant() {
         return state.live ? Date.now() : state.baseInstantMs;
+      }
+
+      // --- Offset helpers (map strips <-> time zones) ---
+      function getOffsetHourForTz(tz, ms) {
+        // Round to the nearest hour to match the 24 strips
+        return Math.round(getOffsetMinutes(tz, ms) / 60);
+      }
+      function stripIdxFromOffsetHour(offsetHour) {
+        // Map offsets (-12..+11) to strip indices (0..23)
+        return (offsetHour + 12 + 24) % 24;
+      }
+      function firstTzByOffsetHour(offsetHour, ms) {
+        return supportedTimeZones.find(
+          (tz) => getOffsetHourForTz(tz, ms) === offsetHour
+        );
       }
 
       function formatDateTime(tz, ms) {
@@ -624,7 +734,77 @@
           zonesEl.appendChild(row);
         });
         renderSettingsHours();
+        renderMapHighlights();
       }
+      function ensureStrips() {
+        if (!worldMapEl) return;
+        if (worldMapEl.querySelector(".zone-strip")) return; // already created
+        const stripWidthPct = 100 / STRIP_COUNT;
+        for (let i = 0; i < STRIP_COUNT; i++) {
+          const div = document.createElement("div");
+          div.className = "zone-strip";
+          div.style.left = `${i * stripWidthPct}%`;
+          div.style.width = `${stripWidthPct}%`;
+          div.setAttribute("data-strip", String(i));
+          div.title = `UTC${formatStripOffsetLabel(i)}`;
+          div.addEventListener("click", () => onStripClick(i));
+          const lbl = document.createElement("div");
+          lbl.className = "strip-label";
+          lbl.textContent = `${formatStripOffsetLabel(i)}`;
+          div.appendChild(lbl);
+          worldMapEl.appendChild(div);
+        }
+      }
+
+      function formatStripOffsetLabel(idx) {
+        // Map strips (0..23) to UTC offsets (-12 .. +11)
+        const offset = idx - 12;
+        const sign = offset >= 0 ? "+" : "-";
+        const abs = Math.abs(offset);
+        return `${sign}${abs}`;
+      }
+
+      function onStripClick(idx) {
+        const ms = baseInstant();
+        const offsetHour = idx - 12; // -12..+11
+        const zonesWithOffset = state.zones.filter(
+          (tz) => getOffsetHourForTz(tz, ms) === offsetHour
+        );
+        if (zonesWithOffset.length > 0) {
+          // Remove all zones that match this offset
+          state.zones = state.zones.filter(
+            (tz) => getOffsetHourForTz(tz, ms) !== offsetHour
+          );
+          render();
+          return;
+        }
+        // Add first supported time zone that matches this offset
+        const candidate = firstTzByOffsetHour(offsetHour, ms);
+        if (candidate && !state.zones.includes(candidate)) {
+          state.zones.push(candidate);
+          render();
+        }
+      }
+
+      function renderMapHighlights() {
+        if (!worldMapEl) return;
+        ensureStrips();
+        // Highlight strips that correspond to any zones in the list
+        const offsets = new Set();
+        const ms = baseInstant();
+        for (const tz of state.zones) {
+          const hours = getOffsetHourForTz(tz, ms);
+          const idx = stripIdxFromOffsetHour(hours);
+          offsets.add(idx);
+        }
+        worldMapEl.querySelectorAll(".zone-strip").forEach((el) => {
+          const idx = parseInt(el.getAttribute("data-strip") || "0", 10);
+          if (offsets.has(idx)) el.classList.add("active");
+          else el.classList.remove("active");
+        });
+      }
+
+      // No per-region clicks now; strips toggle handled individually
 
       function renderSettingsHours() {
         if (!settingsHoursEl) return;
